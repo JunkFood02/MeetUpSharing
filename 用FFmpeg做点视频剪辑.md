@@ -23,7 +23,9 @@ FFmpeg 是一套 C 语言下开发的开源、跨平台的音视频录制、转�
 
 
 
-## NDK，以及 Android 系统的 Native 层
+## Java 字节码与虚拟机
+
+提到 NDK，就不能不提大家更熟悉的 JDK（Java Development Kit）以及 Java 语言。
 
 Android 开发使用 Java / Kotlin 语言进行开发，而这两种语言最后都会被翻译成 `.class` Java 字节码，运行在 Java 虚拟机上（？）
 
@@ -34,12 +36,29 @@ A[Java/Kotlin Code]-->C[Java/Kotlin Compiler]--Compile-->D["Java Bytecode(.class
 
 ```
 
-戳啦，其实还要被翻译成 `.dex` Dalvik 字节码，然后再运行在 ART（Android Runtime）上。
+戳啦，其实还要被翻译成 `.dex` Dalvik 字节码，然后再运行在 ART（Android Runtime）上。（Dalvik 虚拟机已过时）
 
 ```mermaid
 graph LR
 B["Java Bytecode(.class)"]-->D["Dex Complier(D8)"]--Compile-->dex["Dalvik Bytecode(.dex)"]-->E[ART]
 ```
+
+Java 作为一款跨平台、易移植的语言，最大的特点就是 Java 所编译得到的 Java 字节码并不直接运行在 *本地* 机器上（Natively），而是运行于 Java VM 上。Java 虚拟机屏蔽了不同硬件之间的差异，使得 Java 字节码可以在不同设备的 JVM 上实现“一次编译，随处运行”。
+
+但 Java 由于其可移植性特化，必然在其他方面上做出了牺牲：
+
+- 虚拟机上的目标代码的运行速度，比起像 C / C++ 这样直接运行在本地机器上的 **原生**（Native）代码要慢上 10-20 倍。
+- 由于虚拟机屏蔽了不同硬件之间的差异，Java 代码自然也无法深入到底层去进行一些操作系统层的操作。
+
+为了提高 Android 系统运行的效率，Android 先后引入了 JIT（Just-In-Time）编译技术与 AOT (Ahead-Of-Time) 编译技术：
+
+JIT
+
+无论是这里的 Java 字节码或是 Dalvik 字节码，
+
+
+
+## NDK，以及 Android 系统的 Native 层
 
 
 
