@@ -217,9 +217,13 @@ ffmpeg -ss 0 -i input.mp4 -t 15 -c copy output.mp4
 
 然后我们会发现剪出来的视频音画不同步，而且音频还比视频多出来几秒，这是怎么会是呢？
 
-![image-20220412194151703](/home/junkfood/Documents/mushare/README.assets/image-20220412194151703.png)
 
-![image-20220412194322962](/home/junkfood/Documents/mushare/README.assets/image-20220412194322962.png)
+
+## 视频的重编码
+
+![image-20220412194151703](README.assets/image-20220412194151703.png)
+
+![image-20220412194322962](README.assets/image-20220412194322962.png)
 
 （这两张图片大小各为 900k 左右）
 
@@ -239,15 +243,40 @@ ffmpeg -ss 0 -i input.mp4 -t 15 -c copy output.mp4
 
 主要是野指针和空指针
 
-最简单粗暴的方法：打 log
+1. 最简单粗暴的方法：打 log
+
 
 ```c
 __android_log_print(ANDROID_LOG_INFO,"FFmpeg","main:PROCESS START");
 ```
 
-看 logcat 里输出的报错信息
+2. 看 logcat 里输出的报错信息
+
+
+3. stack 查看 Tombstone 内储存的信息，分析栈帧（但是十分麻烦！）
 
 > Tombstone 是一个包含与崩溃进程相关的额外数据的文件。具体而言，该文件包含崩溃进程中所有线程（而不只是捕捉到信号的线程）的堆栈轨迹、完整的内存映射，以及所有打开的文件描述符的列表。
 
-stack 查看 Tombstone 内储存的信息，分析栈帧（但是十分麻烦！）
 
+
+
+
+## References
+
+[在 Android 上利用 FFmpeg 给 Gif 图片加字幕](https://uniquestudio.feishu.cn/wiki/wikcnaZykdmOaQTR8F27iEENBcg)
+
+[【联创の炼金工坊】Android NDK 之 Hello World](https://mp.weixin.qq.com/s/C23jWjwmgydqqBNdgMc-DQ)
+
+[GCC/Make/CMake 之 GCC - 知乎](https://zhuanlan.zhihu.com/p/342151242)
+
+[Android 集成 FFmpeg (一) 基础知识及简单调用_yhao的博客-CSDN博客](https://blog.csdn.net/yhaolpz/article/details/76408829)
+
+[将 NDK 与其他构建系统配合使用  |  Android NDK  |  Android Developers](https://developer.android.google.cn/ndk/guides/other_build_systems?hl=zh-cn)
+
+[Android ABI  |  Android NDK  |  Android Developers](https://developer.android.com/ndk/guides/abis)
+
+[自动打包 CMake 使用的预构建依赖项  |  Android 开发者  |  Android Developers](https://developer.android.com/studio/releases/gradle-plugin#cmake-imported-targets)
+
+[调试 Android 平台原生代码](https://source.android.com/devices/tech/debug)
+
+视频，以及怎么基于FFmpeg播出来视频
