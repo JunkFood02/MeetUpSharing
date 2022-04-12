@@ -1,6 +1,8 @@
-# 用 FFmpeg 做点视频剪辑
+# （路过的蚂蚁都能听懂的）用 FFmpeg 做点视频剪辑
 
 贵组经典新人任务：实现一个仿抖音的播放器(但缝合加料版)
+
+[GalleryView](https://github.com/JunkFood02/Gallery-View)
 
 > #### **进阶需求(难度较大)**
 >
@@ -74,14 +76,44 @@ Java 作为一款跨平台、易移植的语言，最大的特点就是 Java 所
 
 JNI 即 Java Native Interface，是 Java 提供用来与其他语言编写的程序通信的接口，之中定义了 Java 字节码与 Native 代码的交互方式。这里我们通过 NDK 来使用 JNI，从而实现 Android 程序中 Java 代码与 C/C++ 代码的相互调用。
 
-NDK 即 Native Development Kit，其提供一个编译工具链以及其他工具，让我们在 Android 开发中使用和调试 C/C++ 语言编写而成的库。
+NDK 即 Native Development Kit，其提供一个编译工具链以及其他开发工具，可以让我们在 Android 开发中使用和调试 C/C++ 语言编写而成的库。
 
-在 Android 开发中，我们应当先在 Java 文件中声明一个 Native 方法，然后在 C/C++ 文件中实现 Native 方法，接着使用 NDK 的工具链将 C/C++ 代码编译成 **动态链接库** ，然后使用 Android Studio 的 Gradle 将我们编译好的库打包到 APK 中。随后在运行程序时，Java 代码就可以通过 Java 原生接口 (JNI) 框架调用库中的 Native 方法。
+在 Android 开发中，我们应当先在 Java (Kotlin) 文件中声明一个 `native` (`external`) 方法，然后在 C/C++ 文件中实现 Native 方法，接着使用 NDK 的工具链将 C/C++ 代码编译成 **动态链接库** ，然后使用 Android Studio 的 Gradle 将我们编译好的库打包到 APK 中。随后在运行程序时，Java 代码就可以通过 Java 原生接口 (JNI) 框架调用库中的 Native 方法。
 
-动态链接库 (.so) 与静态库 (.a) 的区别
+Java 代码：
 
-- .a (Static Library) 静态库中的代码在编译后直接进入可执行文件中，在 Windows 中为 .lib 后缀名
-- .so (Shared Object) 动态链接库则是将包含在程序外的库文件中，在运行时被程序动态地链接上并调用。在 Windows 中为 .dll (Dynamic Link Library) 后缀名
+```java
+private static native void run(String[] commands);
+```
+
+实现了 JNI 的 C 语言代码：
+
+```c
+Java_com_example_galleryview_model_FFmpegUtils_run(JNIEnv *env, jclass clazz,
+                                                   jobjectArray commands) {
+    int argc = (*env).GetArrayLength(commands);
+    char *argv[argc + 2];
+    int i;
+    for (i = 0; i < argc; i++) {
+        argv[i] = (char *) malloc(sizeof(char) * 100);
+        auto js = (jstring) (*env).GetObjectArrayElement(commands, i);
+        strcpy(argv[i], (char *) (*env).GetStringUTFChars(js, 0));
+    }
+    
+    int resultCode = ffmpeg_exec(argc, argv);
+    
+    jmethodID finishCallback = (*env).GetStaticMethodID(clazz, "onProcessResult", "(Z)V");
+    if (nullptr == finishCallback) {
+        LOGE("can't find method");
+        return;
+    }
+    (*env).CallStaticVoidMethod(clazz, finishCallback, resultCode);
+    //调用Java代码内名为onProcessResult的静态函数，并将resultCode作为参数传入
+}
+```
+
+
+
 
 
 
@@ -123,7 +155,9 @@ ABI 即应用二进制接口 (Application Binary Interface)。ABI 中包含以�
 
   
 
-当我们编写 Java 代码时，由于 Java 运行在 Java 虚拟机上，我们无需关心设备具体的硬件条件、架构或 CPU，但当我们需要在 Android 程序中使用 Native 代码时，由于不同的 Android 设备使用不同的 CPU，而不同的 CPU 支持不同的指令集，CPU 与指令集的每种组合都有专属的 ABI。因此我们需要针对不同的 Android ABI，构建并编译出**适应于不同 ABI** 的 .so 动态链接库。
+当我们编写 Java 代码时，由于无论是 Java 字节码，或是 Java 字节码翻译成的 Dalvik 字节码，其两者都与 Android 设备的 ABI 无关，我们无需关心设备具体的硬件条件、架构或 CPU。
+
+但当我们需要在 Android 程序中使用 Native 代码时，由于不同的 Android 设备使用不同的 CPU，而不同的 CPU 支持不同的指令集，CPU 与指令集的每种组合都有专属的 ABI。因此我们需要针对不同的 Android ABI，构建并编译出**适应于不同 ABI** 的 .so 动态链接库。
 
 当我们将这些为不同 ABI 所编译的库打包成 APK 时，这些 APK 自然也是只有特定 ABI 的 Android 设备才能安装使用的。例如：苹果芯片支持的 arm64-v8a 镜像无法安装专门为 armeabi-v7a 编译的 APK 包，我们在编译的时候可以在 Gradle 的 `ndk.abiFilters` 参数中控制要编译打包何种 ABI 的库。
 
@@ -133,11 +167,11 @@ ABI 即应用二进制接口 (Application Binary Interface)。ABI 中包含以�
 
 经过前述文字的梳理，想必已经对 Android 下使用 Native 库的的基本逻辑与行为有了一定的理解，我们再通过几张流程图来进行梳理：
 
-1. 编写 CMakeLists.txt ，将 C/C++ 代码与引入的 FFmpeg 库加入到项目中，并链接到一起
-2. 在 Java 类中编写并调用 Native 方法
-3. 在 C/C++ 代码中实现 Native 方法，Native 方法调用 FFmpeg 库
-4. 使用 CMake + Ninja 与 NDK 工具链将 C/C++ 代码以及引入的 FFmpeg 库编译成动态链接库
-5. Gradle 将动态链接库打包进 APK 中
+1. 编写 CMakeLists.txt ，将 C/C++ 代码与引入的 FFmpeg 库加入到项目中，并链接到一起，稍后 Gradle 会根据这个文件来进行原生代码的构建
+2. 在 Java 类中声明并调用 Native 方法
+3. 在 C/C++ 代码中实现 Native 方法，Native 方法调用 FFmpeg 动态库中的函数
+4. 使用 CMake + Ninja 与 NDK 工具链将我们自己编写的 C/C++ 代码编译成动态链接库，并将该库与引入的 FFmpeg 库链接到一起。
+5. Gradle 将所有动态链接库一起打包进 APK 中
 
 
 
@@ -166,3 +200,54 @@ G[Native Library]-->H[JNI]-->A[Java Class]
 A-->H-->G
 
 ```
+
+
+
+## 终于要开始给视频开刀了
+
+虽然我们已经成功编译了 FFmpeg 的主要库并集成到了我们的 Android 应用中。我们暂时不需要知道这些库具体的作用和用法是什么，FFmpeg 已经为我们提供了方便的命令行工具来进行音视频操作，这个工具就在**源码**文件夹的 `fftools` 目录下，将其集成到 Android 应用中，我们便可方便快捷地使用 FFmpeg 来进行音视频操作。
+
+我们来看看如何剪出一个视频的前 15 秒：
+
+```
+ffmpeg -ss 0 -i input.mp4 -t 15 -c copy output.mp4
+```
+
+**这不是有手就行？**
+
+然后我们会发现剪出来的视频音画不同步，而且音频还比视频多出来几秒，这是怎么会是呢？
+
+![image-20220412194151703](/home/junkfood/Documents/mushare/README.assets/image-20220412194151703.png)
+
+![image-20220412194322962](/home/junkfood/Documents/mushare/README.assets/image-20220412194322962.png)
+
+（这两张图片大小各为 900k 左右）
+
+如果视频忠实地按照每秒存储 24 张（甚至 30、60 张）图片来实现逐帧的播放，那么视频文件的大小将会十分恐怖。
+
+视频文件通过记录关键帧，以及关键帧之间的变化来记录视频信息，这个过程叫视频的 **编码**。
+
+而播放器通过读取关键帧，以及关键帧间信息来将视频还原成一张又一张的图片显示在屏幕上，这个过程则叫视频的 **解码**。
+
+音画不同步的原因：视频流 seek 到关键帧上，而音频被完整剪辑
+
+解决方法：使用视频解编码器进行重编码，即可实现精确裁剪（libx264、H264 编码）
+
+
+
+## Native 层故障排除
+
+主要是野指针和空指针
+
+最简单粗暴的方法：打 log
+
+```c
+__android_log_print(ANDROID_LOG_INFO,"FFmpeg","main:PROCESS START");
+```
+
+看 logcat 里输出的报错信息
+
+> Tombstone 是一个包含与崩溃进程相关的额外数据的文件。具体而言，该文件包含崩溃进程中所有线程（而不只是捕捉到信号的线程）的堆栈轨迹、完整的内存映射，以及所有打开的文件描述符的列表。
+
+stack 查看 Tombstone 内储存的信息，分析栈帧（但是十分麻烦！）
+
